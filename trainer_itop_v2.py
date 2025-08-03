@@ -10,7 +10,6 @@ from datasets.my_itop import ITOP
 from utils import metrics, scheduler
 import os
 from const import skeleton_joints
-from utils import my_functions
 
 class MyLoss(nn.Module):
     def __init__(self):
