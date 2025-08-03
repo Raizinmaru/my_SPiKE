@@ -43,7 +43,6 @@ def main(arguments):
     dir_name = dir_name
 
     out_dir = os.path.join(config["output_dir"], dir_name)
-    #out_dir = os.path.join(config["output_dir"], dt_now.isoformat())
     print(f"output directory: {dir_name}")
     
     #os.environ["CUDA_VISIBLE_DEVICES"] = str(config["device_args"])
@@ -108,37 +107,28 @@ def main(arguments):
     best_epoch = 0
 
     list_train_loss, list_train_map, list_train_pck, list_val_loss, list_val_map, list_val_pck = [], [], [], [], [], []
-    # Add MyLoss
-    #list_train_loss1, list_train_loss2, list_train_loss3, list_val_loss1, list_val_loss2, list_val_loss3 = [], [], [], [], [], []
+    list_train_loss1, list_train_loss2, list_train_loss3, list_val_loss1, list_val_loss2, list_val_loss3 = [], [], [], [], [], []
 
     for epoch in range(config["start_epoch"], config["epochs"]):
         if not os.path.exists(out_dir): os.mkdir(out_dir)
         
-        train_clip_loss, train_pck, train_map = train_one_epoch(
-        # Add MyLoss
-        #train_clip_loss, train_pck, train_map, train_loss1, train_loss2, train_loss3 = train_one_epoch(
+        train_clip_loss, train_pck, train_map, train_loss1, train_loss2, train_loss3 = train_one_epoch(
             pretrained_model,
             model, criterion, optimizer, lr_scheduler, data_loader, device, epoch, eval_thresh,
             out_dir
         )
 
-        val_clip_loss, val_pck, val_map = evaluate(
-        # Add MyLoss
-        #val_clip_loss, val_pck, val_map, val_loss1, val_loss2, val_loss3 = evaluate(
+        val_clip_loss, val_pck, val_map, val_loss1, val_loss2, val_loss3 = evaluate(
             pretrained_model, 
             model, criterion, data_loader_test, device=device, threshold=eval_thresh
         )
 
-        print(f"Epoch {epoch} - Train Loss: {train_clip_loss:.4f}")
-        # Add MyLoss
-        #print(f"Epoch {epoch} - Train Loss: {train_clip_loss:.4f}={train_loss1:.4f}+{train_loss2:.4f}+{train_loss3:.4f}")
+        print(f"Epoch {epoch} - Train Loss: {train_clip_loss:.4f}={train_loss1:.4f}+{train_loss2:.4f}+{train_loss3:.4f}")
         
         print(f"Epoch {epoch} - Train mAP: {train_map:.4f}")
         print(f"Epoch {epoch} - Train PCK: {train_pck}")
         
-        print(f"Epoch {epoch} - Validation Loss: {val_clip_loss:.4f}")
-        # Add MyLoss
-        #print(f"Epoch {epoch} - Validation Loss: {val_clip_loss:.4f}={val_loss1:.4f}+{val_loss2:.4f}+{val_loss3:.4f}")
+        print(f"Epoch {epoch} - Validation Loss: {val_clip_loss:.4f}={val_loss1:.4f}+{val_loss2:.4f}+{val_loss3:.4f}")
         
         print(f"Epoch {epoch} - Validation mAP: {val_map:.4f}")
         print(f"Epoch {epoch} - Validation PCK: {val_pck}")
@@ -186,39 +176,6 @@ def main(arguments):
 
                 #torch.save(checkpoint, os.path.join(config["output_dir"], "best_model.pth"))
                 torch.save(checkpoint, os.path.join(out_dir, "best_model.pth"))
-
-
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # check result
-    print("~~~~~ best result ~~~~~")
-    print(f"Epoch: {best_epoch}")
-    print(f"Train Loss: {best_train_loss:.4f}")
-    print(f"Train mAP: {best_train_map:.4f}")
-    print(f"Train PCK: {best_train_pck}")
-    print(f"Validation Loss: {best_val_loss:.4f}")
-    print(f"Validation mAP: {best_val_map:.4f}")
-    print(f"Validation PCK: {best_val_pck}")
-    print("~~~~~~~~~~~~~~~~~~~~~~~")
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # save result
-    import matplotlib.pyplot as plt
-    ''' Add MyLoss
-    plt.plot(range(len(list_train_loss1)), list_train_loss1, label="train_loss1")
-    plt.plot(range(len(list_train_loss2)), list_train_loss2, label="train_loss2")
-    plt.plot(range(len(list_train_loss3)), list_train_loss3, label="train_loss3")
-    plt.plot(range(len(list_val_loss1)), list_val_loss1, label="test_loss1")
-    plt.plot(range(len(list_val_loss2)), list_val_loss2, label="test_loss2")
-    plt.plot(range(len(list_val_loss3)), list_val_loss3, label="test_loss3")
-    plt.legend()
-    plt.xlabel("Epochs")
-    plt.ylabel("Error")
-    plt.savefig(os.path.join(out_dir, "loss.png"))
-    plt.clf()
-    plt.close()
-    #'''
     
     plt.plot(range(len(list_train_loss)), list_train_loss, label="Train")
     plt.plot(range(len(list_val_loss)), list_val_loss, label="Test")
@@ -263,7 +220,6 @@ if __name__ == "__main__":
         help="Path to the YAML config file",
     )
 
-    #''' Add
     parser.add_argument(
         "--model",
         type=str,
@@ -276,7 +232,6 @@ if __name__ == "__main__":
         default=None,
         help="add information to the directory name",
     )
-    #'''
 
     args = parser.parse_args()
     main(args)
