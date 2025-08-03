@@ -57,7 +57,7 @@ Ensure these tools are available in your environment before proceeding.
 To train the model, check that the config.yaml has the correct parameters and run:
 
 ```bash
-python train_itop.py --config experiments/ITOP-SIDE/1/config.yaml
+python train_itop_v2.py --config experiments/ITOP-SIDE/1/config.yaml
 ```
 
 ### Inference
@@ -65,5 +65,5 @@ python train_itop.py --config experiments/ITOP-SIDE/1/config.yaml
 For predictions, update the path pointing to the model weights, check that the config.yaml has the correct parameters and run:
 
 ```bash
-python predict_itop.py --config experiments/ITOP-SIDE/1/config.yaml --model experiments/ITOP-SIDE/1/log/model.pth
+python predict_itop_pre.py --config experiments/ITOP-SIDE/1/config.yaml --model experiments/ITOP-SIDE/1/log/model.pth
 ```
