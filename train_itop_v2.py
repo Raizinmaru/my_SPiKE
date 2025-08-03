@@ -36,7 +36,7 @@ def main(arguments):
     if arguments.model is not None:
         dir_name = dir_name + "_wInit"
     
-    dir_name = dir_name + "_self_2"
+    dir_name = dir_name + "_v2"
 
     if arguments.info is not None:
         dir_name = dir_name + "_" + arguments.info
@@ -56,8 +56,6 @@ def main(arguments):
     print(f"Loading data from {config['dataset_path']}")
     data_loader, data_loader_test, num_coord_joints = load_data(config)
 
-
-    #''' Add
     if arguments.model is not None:
         # pretrained model (SPiKE)
         from model import model_builder
@@ -89,7 +87,6 @@ def main(arguments):
             model = nn.DataParallel(model)
         
         model.to(device)
-    #'''
 
     criterion = create_criterion(config)
     optimizer, lr_scheduler = create_optimizer_and_scheduler(config, model, data_loader)
