@@ -13,8 +13,6 @@ from trainer_itop_v2 import load_data, create_criterion
 from utils.config_utils import load_config, set_random_seed
 from utils.metrics import joint_accuracy
 
-from utils import my_functions
-
 def evaluate(
         pre_model,
         config,
@@ -27,8 +25,7 @@ def evaluate(
     total_map = 0.0
     clip_losses = []
 
-    # Add MyLoss
-    #total_loss1, total_loss2, total_loss3 = 0.0, 0.0, 0.0
+    total_loss1, total_loss2, total_loss3 = 0.0, 0.0, 0.0
 
     total_inference_time = 0.0
     total_inference_time_pre = 0.0
@@ -36,7 +33,6 @@ def evaluate(
     inference_cnt_pre = 0
 
     initial_frames = 2
-    #poses_cnt = 0
     poses_history = []
     switch = 0
 
@@ -99,10 +95,7 @@ def evaluate(
                     poses_history.pop(0) # 最古のposeを削除
 
 
-                loss = criterion(output, target[:,-1])
-                # Add MyLoss
-                #loss, loss1, loss2, loss3 = criterion(output, target[:,-1])
-                #loss, _, _, _ = criterion(output, target[:,-1])
+                loss, loss1, loss2, loss3 = criterion(output, target[:,-1])
 
                 pck, mean_map = joint_accuracy(output.unsqueeze(1), target[:,-1].unsqueeze(1), threshold)
                 total_pck += pck.detach().cpu().numpy()
@@ -110,10 +103,9 @@ def evaluate(
 
                 total_loss += loss.item()
                 
-                # Add MyLoss
-                #total_loss1 += loss1.item()
-                #total_loss2 += loss2.item()
-                #total_loss3 += loss3.item()
+                total_loss1 += loss1.item()
+                total_loss2 += loss2.item()
+                total_loss3 += loss3.item()
 
                 clip_losses.append(
                     (
@@ -124,25 +116,15 @@ def evaluate(
                         output.cpu().detach().numpy(),
                     )
                 )
-
-                if save is not None:
-                    for b in range(clip.shape[0]):
-                        file_name = os.path.join(tmp_dir, f"{frame_cnt:05d}_{video_id[b][0].item():02d}_{video_id[b][1].item():05d}_{switch}.png")  # 5桁の番号でファイル名を付ける
-                        fig = my_functions.plot_point_cloud_and_joints(point_cloud=clip[b][-1], 
-                                                                    pred_joints=output[b],
-                                                                    #label_joints=target[b][-1]
-                                                                    )
-                        my_functions.save_fig(fig=fig, file_name=file_name)
                 
 
         total_loss /= len(data_loader.dataset)
         total_map /= len(data_loader.dataset)
         total_pck /= len(data_loader.dataset)
 
-        # Add MyLoss
-        #total_loss1 /= len(data_loader.dataset)
-        #total_loss2 /= len(data_loader.dataset)
-        #total_loss3 /= len(data_loader.dataset)
+        total_loss1 /= len(data_loader.dataset)
+        total_loss2 /= len(data_loader.dataset)
+        total_loss3 /= len(data_loader.dataset)
 
         total_inference_time /= inference_cnt
         total_inference_time_pre /= (inference_cnt_pre+inference_cnt)
@@ -150,9 +132,7 @@ def evaluate(
         print(f"Inference Time Pre: {total_inference_time_pre:.4f} ms")
         print(f"Inference Time: {total_inference_time:.4f} ms")
 
-    return clip_losses, total_loss, total_map, total_pck
-    # Add MyLoss
-    #return clip_losses, total_loss, total_map, total_pck, total_loss1, total_loss2, total_loss3
+    return clip_losses, total_loss, total_map, total_pck, total_loss1, total_loss2, total_loss3
 
 
 def main(arguments):
@@ -189,9 +169,7 @@ def main(arguments):
 
     criterion = create_criterion(config)
 
-    losses, val_clip_loss, val_map, val_pck = evaluate(
-    # Add MyLoss
-    #losses, val_clip_loss, val_map, val_pck, val_loss1, val_loss2, val_loss3 = evaluate(
+    losses, val_clip_loss, val_map, val_pck, val_loss1, val_loss2, val_loss3 = evaluate(
         pre_model,
         config,
         arguments.save,
@@ -199,46 +177,9 @@ def main(arguments):
     )
     losses.sort(key=lambda x: x[1], reverse=True)
 
-    print(f"Validation Loss: {val_clip_loss:.4f}")
-    # Add MyLoss
-    #print(f"Validation Loss: {val_clip_loss:.4f}={val_loss1:.4f}+{val_loss2:.4f}+{val_loss1:.3f}")
+    print(f"Validation Loss: {val_clip_loss:.4f}={val_loss1:.4f}+{val_loss2:.4f}+{val_loss1:.3f}")
     print(f"Validation mAP: {val_map:.4f}")
     print(f"Validation PCK: {val_pck}")
-
-    import sys
-    sys.exit()
-
-
-    temp_dir = "tmp"
-    import glob
-    img_files  = glob.glob(os.path.join(temp_dir, '*.png'))
-    img_files.sort()
-    frames=len(img_files)
-    assert frames != 0, 'not found image file'
-
-    import cv2
-    img = cv2.imread(img_files[0])
-    h, w, _ = img.shape[:3]
-
-    # 作成する動画
-    out_dir = os.path.dirname(arguments.model)
-    print(f"out_dir: {out_dir}")  # 出力: dir1/dir2
-    codec = cv2.VideoWriter_fourcc(*'mp4v')
-    writer = cv2.VideoWriter(os.path.join(out_dir, "result.mp4"), codec, 5, (w, h),1)
-
-    bar = tqdm(total=frames, dynamic_ncols=True)
-    for f in img_files:
-        # 画像を1枚ずつ読み込んで 動画へ出力する
-        img = cv2.imread(f)
-        writer.write(img)   
-        bar.update(1)
-    
-    # 後始末
-    bar.close()
-    writer.release()
-    #import shutil
-    #shutil.rmtree(tmp_dir)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SPiKE Testing on ITOP dataset")
