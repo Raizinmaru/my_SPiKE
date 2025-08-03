@@ -8,8 +8,6 @@ from torch import nn
 import numpy as np
 from datasets.my_itop import ITOP
 from utils import metrics, scheduler
-
-#''' ~~~~~~~~~~ Add ~~~~~~~~~~
 import os
 from const import skeleton_joints
 from utils import my_functions
@@ -19,26 +17,15 @@ class MyLoss(nn.Module):
         super(MyLoss, self).__init__()
     
     def forward(self, input, target):
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # define weights
         w1 = 1.0
         w2 = 1.0
         w3 = 1.0
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # loss1: regression
         loss_1 = torch.mean(torch.abs(input - target))
-        #loss_1 = torch.abs(input - target).sum()
-        
-        #total_l1_loss = 0.0
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # loss2: bone length
-        # input: (24, 15, 3)
         total_loss_2 = 0.0
         for b in range(input.shape[0]):
             for limb in skeleton_joints.joint_connections:
@@ -47,15 +34,10 @@ class MyLoss(nn.Module):
                 p2 = limb[1]
                 len_input = torch.abs(input[b, p1] - input[b, p2]).sum()
                 len_target = torch.abs(target[b, p1] - target[b, p2]).sum()
-                total_loss_2 += torch.abs(len_input - len_target)
-        
+                total_loss_2 += torch.abs(len_input - len_target)      
         loss_2 = total_loss_2 / len(skeleton_joints.joint_connections) / input.shape[0]
-        #loss_2 = total_l1_loss
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # loss3: symmetry
-        # input: (24, 15, 3)
         total_loss_3 = 0.0
         for b in range(input.shape[0]):
             for limb in skeleton_joints.joint_symmetry:
@@ -71,14 +53,11 @@ class MyLoss(nn.Module):
                 total_loss_3 += torch.abs(len_left - len_right)
         
         loss_3 = total_loss_3 / len(skeleton_joints.joint_connections) / input.shape[0]
-        #loss_2 = total_l1_loss
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
         loss = loss_1 * w1 + loss_2 * w2 + loss_3
 
         return loss, loss_1, loss_2, loss_3
-#''' ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 def train_one_epoch(
@@ -90,32 +69,16 @@ def train_one_epoch(
     header = f"Epoch: [{epoch}]"
     total_loss, total_pck, total_map = 0.0, np.zeros(15), 0.0
     
-    # Add MyLoss
-    #total_loss1, total_loss2, total_loss3 = 0.0, 0.0, 0.0
+    total_loss1, total_loss2, total_loss3 = 0.0, 0.0, 0.0
     
     cnt_bs = 0
     for clip, target, _ in tqdm(data_loader, desc=header):  # clip: [24, 3, 4096, 3], target: [24, 3, 15, 3]
         clip, target = clip.to(device), target.to(device)
-        #print(clip.shape, target.shape)
 
-        ''' Add
-        if pretrained_model is not None:
-            pretrained_output = pretrained_model(clip).reshape(target.shape)
-            #print(pretrained_output.shape)  #(24,1,15,3)
-
-            output = model(clip.contiguous(), pretrained_output.contiguous()).reshape(target.shape)
-        elif pretrained_model is None:
-            #output = model(clip).reshape(target.shape)
-            #output = model(clip[:,-1].unsqueeze(1).contiguous(), target[:,-3:-1].contiguous())
-            output = model(clip[:,-1].unsqueeze(1).contiguous(), target)
-        #'''
         output = model(clip[:,-1].unsqueeze(1).contiguous(), target)
         output =  output.reshape(target[:,-1].shape)
    
-        loss = criterion(output, target[:,-1])
-        # Add MyLoss
-        #loss, loss1, loss2, loss3 = criterion(output, target[:,-1])
-        #loss, _, _, _ = criterion(output, target[:,-1])
+        loss, loss1, loss2, loss3 = criterion(output, target[:,-1])
         
         pck, mean_map = metrics.joint_accuracy(output.unsqueeze(1), target[:,-1].unsqueeze(1), threshold)
         total_pck += pck.detach().cpu().numpy()
@@ -126,52 +89,21 @@ def train_one_epoch(
         optimizer.step()
         total_loss += loss.item()
 
-        # Add MyLoss
-        #total_loss1 += loss1.item()
-        #total_loss2 += loss2.item()
-        #total_loss3 += loss3.item()
+        total_loss1 += loss1.item()
+        total_loss2 += loss2.item()
+        total_loss3 += loss3.item()
 
         lr_scheduler.step()
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-        #'''save fig
-        if (epoch+1) % 10 == 0:
-            out_path = os.path.join(out_dir,  "epoch_" + str(epoch+1))
-
-            if not os.path.exists(out_path):
-                os.mkdir(out_path)
-            
-            #'''
-            for n in range(clip.shape[0]):
-                #if cnt_bs % 1000 == 0:
-                if cnt_bs < 6:
-                    file_name = os.path.join(out_path, str(cnt_bs) + ".jpg")
-                    fig = my_functions.plot_point_cloud_and_joints_multiview(
-                            point_cloud=clip[cnt_bs][-1], 
-                            pred_joints=output[cnt_bs],
-                            label_joints=target[cnt_bs][-1],
-                            #other_pts = ref_pts[n][0]
-                        )
-                    my_functions.save_fig(fig=fig, file_name=file_name)
-                cnt_bs += 1
-            '''
-        #'''
 
     total_loss /= len(data_loader)
     total_map /= len(data_loader)
     total_pck /= len(data_loader)
 
-    # Add MyLoss
-    #total_loss1 /= len(data_loader)
-    #total_loss2 /= len(data_loader)
-    #total_loss3 /= len(data_loader)
-
-
-    return total_loss, total_pck, total_map
-    # Add MyLoss
-    #return total_loss, total_pck, total_map, total_loss1, total_loss2, total_loss3
-
+    total_loss1 /= len(data_loader)
+    total_loss2 /= len(data_loader)
+    total_loss3 /= len(data_loader)
+    
+    return total_loss, total_pck, total_map, total_loss1, total_loss2, total_loss3
 
 def evaluate(
         pretrained_model,
@@ -180,55 +112,37 @@ def evaluate(
     model.eval()
     total_loss, total_pck, total_map = 0.0, np.zeros(15), 0.0
     
-    # Add MyLoss
-    #total_loss1, total_loss2, total_loss3 = 0.0, 0.0, 0.0
+    total_loss1, total_loss2, total_loss3 = 0.0, 0.0, 0.0
 
     with torch.no_grad():
         for clip, target, _ in tqdm(
             data_loader, desc="Validation" if data_loader.dataset.train else "Test"
         ):
             clip, target = clip.to(device, non_blocking=True), target.to(device, non_blocking=True)
-            #print("clip.shape: ", clip.shape)       # [24, 3, 4096, 3]
-            #print("target.shape: ", target.shape)   # [24, 3, 15, 3]
 
-            ''' Add
-            if pretrained_model is not None:
-                pretrained_output = pretrained_model(clip).reshape(target.shape)
-                output, _ = model(clip[:,-1].unsqueeze(1).contiguous(), pretrained_output)
-            elif pretrained_model is None:
-                #output = model(clip[:,-1].unsqueeze(1).contiguous(), target[:,-3:-1].contiguous())
-                output = model(clip[:,-1].unsqueeze(1).contiguous(), target)
-            #'''
             output = model(clip[:,-1].unsqueeze(1).contiguous(), target)
             output = output.reshape(target[:,-1].shape)
 
-            loss = criterion(output, target[:,-1])
-            # Add MyLoss
-            #loss, loss1, loss2, loss3 = criterion(output, target[:,-1])
+            loss, loss1, loss2, loss3 = criterion(output, target[:,-1])
             
             pck, mean_map = metrics.joint_accuracy(output.unsqueeze(1), target[:,-1].unsqueeze(1), threshold)
             total_pck += pck.detach().cpu().numpy()
             total_map += mean_map.detach().cpu().item()
             total_loss += loss.item()
 
-            # Add MyLoss
-            #total_loss1 += loss1.item()
-            #total_loss2 += loss2.item()
-            #total_loss3 += loss3.item()
+            total_loss1 += loss1.item()
+            total_loss2 += loss2.item()
+            total_loss3 += loss3.item()
 
     total_loss /= len(data_loader)
     total_map /= len(data_loader)
     total_pck /= len(data_loader)
 
-    # Add MyLoss
-    #total_loss1 /= len(data_loader)
-    #total_loss2 /= len(data_loader)
-    #total_loss3 /= len(data_loader)
+    total_loss1 /= len(data_loader)
+    total_loss2 /= len(data_loader)
+    total_loss3 /= len(data_loader)
 
-    return total_loss, total_pck, total_map
-    # Add MyLoss
-    #return total_loss, total_pck, total_map, total_loss1, total_loss2, total_loss3
-
+    return total_loss, total_pck, total_map, total_loss1, total_loss2, total_loss3
 
 def load_data(config, mode="train"):
     """
@@ -296,7 +210,6 @@ def create_criterion(config):
     raise ValueError("Invalid loss type. Supported types: 'l1', 'mse'.")
 
 def create_optimizer_and_scheduler(config, model, data_loader):
-    #'''
     lr = config["lr"]
     optimizer = torch.optim.SGD(
         model.parameters(),
@@ -304,14 +217,6 @@ def create_optimizer_and_scheduler(config, model, data_loader):
         momentum=config["momentum"],
         weight_decay=config["weight_decay"],
     )
-    '''
-    lr = 0.001
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=lr,
-        weight_decay=config["weight_decay"],
-    )
-    #'''
     warmup_iters = config["lr_warmup_epochs"] * len(data_loader)
     lr_milestones = [len(data_loader) * m for m in config["lr_milestones"]]
     lr_scheduler = scheduler.WarmupMultiStepLR(
